@@ -1,0 +1,122 @@
+---- Tabla User
+CREATE TABLE User (
+    user_id INT PRIMARY KEY,
+    gender VARCHAR(20),
+    age INT,
+    experience_level VARCHAR(50),
+    consent BOOLEAN
+);
+
+------- Tabla Player
+CREATE TABLE Player (
+    player_id INT PRIMARY KEY,
+    alias VARCHAR(50),
+    user_id INT,
+    FOREIGN KEY (user_id) REFERENCES User(user_id)
+);
+
+------- Tabla Map
+CREATE TABLE Map (
+    map_code INT PRIMARY KEY,
+    map_name VARCHAR(100)
+);
+
+------- Tabla Sector
+CREATE TABLE Sector (
+    sector_id INT PRIMARY KEY,
+    sector_index INT,
+    map_code INT,
+    FOREIGN KEY (map_code) REFERENCES Map(map_code)
+);
+
+----- Tabla Game
+CREATE TABLE Game (
+    game_id INT PRIMARY KEY,
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
+    episode VARCHAR(50),
+    player_id INT,
+    map_code INT,
+    FOREIGN KEY (player_id) REFERENCES Player(player_id),
+    FOREIGN KEY (map_code) REFERENCES Map(map_code)
+);
+
+------- Tabla Telemetry_event
+CREATE TABLE Telemetry_event (
+    telemetry_id INT PRIMARY KEY,
+    pos_x FLOAT,
+    pos_y FLOAT,
+    pos_z FLOAT,
+    ammo INT,
+    health INT,
+    momentum_x FLOAT,
+    momentum_y FLOAT,
+    created_at TIMESTAMP,
+    game_id INT,
+    sector_id INT,
+    FOREIGN KEY (game_id) REFERENCES Game(game_id),
+    FOREIGN KEY (sector_id) REFERENCES Sector(sector_id)
+);
+
+------- Tabla UX_instrument
+CREATE TABLE UX_instrument (
+    instrument_id INT PRIMARY KEY,
+    code VARCHAR(50),
+    title VARCHAR(100),
+    description TEXT
+);
+
+--------- Tabla UX_item
+CREATE TABLE UX_item (
+    item_id INT PRIMARY KEY,
+    item_text TEXT,
+    item_index INT,
+    instrument_id INT,
+    FOREIGN KEY (instrument_id) REFERENCES UX_instrument(instrument_id)
+);
+
+------ Tabla UX_Response
+CREATE TABLE UX_response (
+    UX_response_id INT PRIMARY KEY,
+    completed_at TIMESTAMP,
+    value TEXT,
+    user_id INT,
+    instrument_id INT,
+    game_id INT,
+    item_id INT,
+    FOREIGN KEY (user_id) REFERENCES User(user_id),
+    FOREIGN KEY (instrument_id) REFERENCES UX_instrument(instrument_id),
+    FOREIGN KEY (game_id) REFERENCES Game(game_id),
+    FOREIGN KEY (item_id) REFERENCES UX_item(item_id)
+);
+
+------ Tabla temporal (staging)
+CREATE TABLE staging_telemetry_event (
+    telemetry_id INT,
+    game_id INT,
+    sector_id INT,
+    pos_x FLOAT,
+    pos_y FLOAT,
+    pos_z FLOAT,
+    ammo INT,
+    health INT,
+    momentum_x FLOAT,
+    momentum_y FLOAT,
+    created_at TIMESTAMP
+);
+
+------ Cargar datos desde archivo TSV
+COPY staging_telemetry_event
+FROM '/path/to/telemetry_data.txt'
+DELIMITER E'\t'
+CSV;
+
+------ Mover datos a la tabla principal
+INSERT INTO Telemetry_event
+(telemetry_id, game_id, sector_id, pos_x, pos_y, pos_z, ammo, health, momentum_x, momentum_y, created_at)
+SELECT telemetry_id, game_id, sector_id, pos_x, pos_y, pos_z, ammo, health, momentum_x, momentum_y, created_at
+FROM staging_telemetry_event;
+
+------- Borrar la tabla temporal
+-- DROP TABLE staging_telemetry_event;
+
